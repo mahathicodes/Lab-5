@@ -2,8 +2,6 @@
 title: "Lab 05 - Data Wrangling"
 output: 
   github_document: default
-  tufte::tufte_html:
-    css: style.css
 link-citations: yes
 ---
 
@@ -86,13 +84,22 @@ system("git push -u origin master")
 
 Once you are done setting up the project, you can now start working with the MET data.
 
+```{r}
+library(data.table)
+library(dtplyr)
+library(dplyr)
+library(ggplot2)
+library(leaflet)
+```
+
+
 ## Setup in R
 
 1. Load the `data.table` (and the `dtplyr` and `dplyr` packages if you plan to work with those).
 
 2. Load the met data from https://github.com/JSC370/jsc370-2023/blob/main/labs/lab03/met_all.gz or  (Use https://raw.githubusercontent.com/JSC370/jsc370-2023/main/labs/lab03/met_all.gz to download programmatically), and also the station data. For the latter, you can use the code we used during lecture to pre-process the stations data:
 
-```{r stations-data, eval = FALSE}
+```{r stations-data, eval = TRUE}
 # Download the data
 stations <- fread("ftp://ftp.ncdc.noaa.gov/pub/data/noaa/isd-history.csv")
 stations[, USAF := as.integer(USAF)]
@@ -111,16 +118,80 @@ stations <- stations[!is.na(USAF)]
 # Removing duplicates
 stations[, n := 1:.N, by = .(USAF)]
 stations <- stations[n == 1,][, n := NULL]
+
+# Loading MET data
+met <- data.table::fread("met_all.gz")
 ```
 
 3. Merge the data as we did during the lecture.
+
+```{r}
+met <- merge(
+  x = met,
+  y = stations,
+  all.x = TRUE, all.y = FALSE,
+  by.x = "USAFID", by.y="USAF"
+)
+
+met_lz <- lazy_dt(met, immutable = FALSE)
+```
+
 
 ## Question 1: Representative station for the US
 
 Across all weather stations, what is the median station in terms of temperature, wind speed, and atmospheric pressure? Look for the three weather stations that best represent continental US using the `quantile()` function. Do these three coincide?
 
 ```{r}
+# met <- met[!is.na(temp)]
+# quantile(met$temp, 0.5)
+# met <- met[!is.na(wind.sp)]
+# quantile(met$wind.sp, 0.5)
+# met <- met[!is.na(stm.press)]
+# quantile(met$stm.press, 0.5)
 
+met_avg_lz <- met_lz %>% 
+  group_by(USAFID) %>% 
+  summarise(
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE)
+  )
+
+met_med_lz <- met_avg_lz %>% 
+  summarise(
+    across(
+      2:4,
+      function(x) quantile(x, probs = 0.5, na.rm = TRUE)
+    )
+  )
+
+temp_us_id <- met_avg_lz %>%
+  mutate(
+    temp_diff = abs(temp - met_med_lz %>% pull(temp))
+  ) %>% 
+  arrange(temp_diff) %>% 
+  slice(1) %>% pull(USAFID)
+
+wind_us_id <- met_avg_lz %>%
+  mutate(
+    diff = abs(wind.sp - met_med_lz %>% pull(wind.sp))
+  ) %>% 
+  arrange(diff) %>% 
+  slice(1) %>% pull(USAFID)
+
+atm_us_id <- met_avg_lz %>%
+  mutate(
+    diff = abs(atm.press - met_med_lz %>% pull(atm.press))
+  ) %>% 
+  arrange(diff) %>% 
+  slice(1) %>% pull(USAFID)
+```
+
+```{r}
+met_lz %>% 
+  select(USAFID, lon, lat) %>% 
+  distinct() %>% 
+  filter(USAFID %in% c(temp_us_id, wind_us_id, atm_us_id))
 ```
 
 Knit the document, commit your changes, and save it on GitHub. Don't forget to add `README.md` to the tree, the first time you render it.
