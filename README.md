@@ -96,26 +96,39 @@ the MET data.
 ``` r
 library(data.table)
 library(dtplyr)
-library(dplyr)
+library(tidyverse)
 ```
 
-    ## 
-    ## Attaching package: 'dplyr'
-
-    ## The following objects are masked from 'package:data.table':
-    ## 
-    ##     between, first, last
-
-    ## The following objects are masked from 'package:stats':
-    ## 
-    ##     filter, lag
-
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     intersect, setdiff, setequal, union
+    ## ── Attaching packages ─────────────────────────────────────── tidyverse 1.3.2 ──
+    ## ✔ ggplot2 3.4.0      ✔ purrr   1.0.0 
+    ## ✔ tibble  3.1.8      ✔ dplyr   1.0.10
+    ## ✔ tidyr   1.2.1      ✔ stringr 1.5.0 
+    ## ✔ readr   2.1.3      ✔ forcats 0.5.2 
+    ## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+    ## ✖ dplyr::between()   masks data.table::between()
+    ## ✖ dplyr::filter()    masks stats::filter()
+    ## ✖ dplyr::first()     masks data.table::first()
+    ## ✖ dplyr::lag()       masks stats::lag()
+    ## ✖ dplyr::last()      masks data.table::last()
+    ## ✖ purrr::transpose() masks data.table::transpose()
 
 ``` r
+library(dplyr)
 library(ggplot2)
+library(mgcv)
+```
+
+    ## Loading required package: nlme
+    ## 
+    ## Attaching package: 'nlme'
+    ## 
+    ## The following object is masked from 'package:dplyr':
+    ## 
+    ##     collapse
+    ## 
+    ## This is mgcv 1.8-41. For overview type 'help("mgcv-package")'.
+
+``` r
 library(leaflet)
 ```
 
@@ -260,64 +273,17 @@ lowest latitude.
 ``` r
 met_stations <- unique(met[, .(USAFID, STATE, temp, wind.sp, atm.press, lon, lat)])
 met_stations <- na.omit(met_stations)
+
 met_stations[, temp_mid := quantile(temp, probs = .5, na.rm = TRUE), by = STATE]
 met_stations[, wind_mid := quantile(wind.sp, probs = .5, na.rm = TRUE), by = STATE]
 met_stations[, atm_mid := quantile(atm.press, probs = .5, na.rm = TRUE), by = STATE]
+
 met_stations[,  distance := sqrt((temp_mid - met_stations$temp)^2 + (wind_mid - met_stations$wind.sp)^2 + (atm_mid - met_stations$atm.press)^2)]
+
 met_stations[, minrecord := which.min(lat), by = STATE]
 met_stations[, n := 1:.N, by = STATE]
-met_state <- met_stations[n == minrecord, .(USAFID, STATE, temp, wind.sp, atm.press, lon, lat)]
-met_state
+met_state <- met_stations[n == minrecord, .(USAFID, STATE, lon, lat)]
 ```
-
-    ##     USAFID STATE temp wind.sp atm.press      lon    lat
-    ##  1: 720365    OR 20.6     3.6    1017.1 -124.290 42.070
-    ##  2: 720379    KY 22.8     4.1    1019.5  -84.856 36.855
-    ##  3: 722010    FL 29.4     3.1    1015.3  -81.750 24.550
-    ##  4: 722085    SC 32.2     1.5    1019.1  -80.723 32.477
-    ##  5: 722096    NV 25.0     3.1    1014.8 -115.132 35.976
-    ##  6: 722151    RI 25.0     2.1    1016.6  -71.799 41.350
-    ##  7: 722166    GA 27.8     0.0    1017.7  -83.277 30.783
-    ##  8: 722235    AL 28.9     1.5    1016.7  -88.068 30.626
-    ##  9: 722329    LA 26.1     0.0    1018.2  -91.339 29.710
-    ## 10: 722358    MS 22.8     0.0    1016.4  -90.472 31.178
-    ## 11: 722508    TX 28.9     6.7    1014.1  -97.346 26.166
-    ## 12: 722725    NM 30.0     7.7    1011.6 -107.720 32.262
-    ## 13: 722728    AZ 33.3     1.5    1012.3 -110.848 31.418
-    ## 14: 722909    CA 21.1     2.6    1014.5 -117.116 32.567
-    ## 15: 723020    NC 27.8     2.1    1017.0  -77.900 34.267
-    ## 16: 723240    TN 28.9     0.0    1016.6  -85.200 35.033
-    ## 17: 723300    MO 26.1     2.1    1016.4  -90.325 36.773
-    ## 18: 723419    AR 28.9     1.5    1016.1  -92.814 33.221
-    ## 19: 723528    OK 36.1     5.7    1011.7  -98.983 34.344
-    ## 20: 724075    NJ 22.8     2.6    1016.5  -75.078 39.366
-    ## 21: 724080    PA 23.9     2.6    1016.9  -75.227 39.873
-    ## 22: 724093    DE 22.8     0.0    1017.0  -75.359 38.689
-    ## 23: 724106    VA 22.8     2.1    1018.0  -79.335 36.573
-    ## 24: 724125    WV 18.9     2.1    1018.9  -81.204 37.298
-    ## 25: 724297    OH 26.1     3.1    1017.4  -84.419 39.103
-    ## 26: 724320    IN 28.9     2.6    1018.1  -87.532 38.037
-    ## 27: 724336    IL 28.3     5.1    1008.9  -89.252 37.778
-    ## 28: 724516    KS 19.4     2.1    1013.2 -100.960 37.044
-    ## 29: 724625    CO 25.0     0.0    1017.6 -107.760 37.140
-    ## 30: 724754    UT 23.9     3.6    1009.7 -113.593 37.091
-    ## 31: 725030    NY 30.0     2.1    1018.4  -73.873 40.777
-    ## 32: 725040    CT 22.8     2.1    1015.9  -73.129 41.158
-    ## 33: 725060    MA 21.7     4.1    1016.9  -70.667 41.250
-    ## 34: 725404    MI 22.8     3.6    1019.5  -84.079 41.868
-    ## 35: 725499    IA 21.7     3.1    1020.9  -93.900 40.630
-    ## 36: 725514    MD 23.3     1.5    1016.7  -76.429 38.142
-    ## 37: 725533    NE 27.8     2.6    1009.2  -95.592 40.079
-    ## 38: 725640    WY 26.7     2.1    1014.2 -104.800 41.150
-    ## 39: 725866    ID 32.2     4.6    1007.8 -114.486 42.482
-    ## 40: 726064    ME 22.8     2.6    1015.5  -70.708 43.394
-    ## 41: 726163    NH 23.3     0.0    1017.5  -72.004 42.805
-    ## 42: 726166    VT 26.1     4.1    1020.1  -73.246 42.891
-    ## 43: 726505    WI 18.3     2.1    1021.3  -87.938 42.595
-    ## 44: 726525    SD 18.3     3.1    1020.2  -97.364 42.879
-    ## 45: 726586    MN 22.2     3.1    1020.5  -94.416 43.644
-    ## 46: 726798    MT 23.3    12.4    1017.0 -110.440 45.698
-    ##     USAFID STATE temp wind.sp atm.press      lon    lat
 
 Knit the doc and save it on GitHub.
 
@@ -328,6 +294,34 @@ mid-point of the state. Combining these with the stations you identified
 in the previous question, use `leaflet()` to visualize all \~100 points
 in the same figure, applying different colors for those identified in
 this question.
+
+``` r
+met_middle <- unique(met[, .(USAFID, STATE, lon, lat)])
+met_middle <- na.omit(met_middle)
+
+met_middle[, lat_mid := quantile(lat, probs = .5, na.rm = TRUE), by = STATE]
+met_middle[, lon_mid := quantile(lon, probs = .5, na.rm = TRUE), by = STATE]
+
+met_middle[,  distance := sqrt((lat_mid - met_middle$lat)^2 + (lon_mid - met_middle$lat)^2)]
+
+met_middle[, minrecord := which.min(distance), by = STATE]
+met_middle[, n := 1:.N, by = STATE]
+met_midpt <- met_middle[n == minrecord, .(USAFID, STATE, lon, lat)]
+```
+
+``` r
+met_state[, type := "Q2"]
+met_midpt[, type := "Q3"]
+met_combined <- rbind(met_state, met_midpt)
+rh <- colorFactor(c('blue', 'red'),
+                       domain = as.factor(met_combined$type))
+leaflet(met_combined) %>%
+  addProviderTiles("OpenStreetMap") %>%
+  addCircles(lng = ~lon, lat = ~lat, color=~rh(type))
+```
+
+<div class="leaflet html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-f29ce28fd2b912d11ef2" style="width:672px;height:480px;"></div>
+<script type="application/json" data-for="htmlwidget-f29ce28fd2b912d11ef2">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addProviderTiles","args":["OpenStreetMap",null,null,{"errorTileUrl":"","noWrap":false,"detectRetina":false}]},{"method":"addCircles","args":[[42.07,36.855,24.55,32.477,35.976,41.35,30.783,30.626,29.71,31.178,26.166,32.262,31.418,32.567,34.267,35.033,36.773,33.221,34.344,39.366,39.873,38.689,36.573,37.298,39.103,38.037,37.778,37.044,37.14,37.091,40.777,41.158,41.25,41.868,40.63,38.142,40.079,41.15,42.482,43.394,42.805,42.891,42.595,42.879,43.644,45.698,32.217,46.677,41.736,36.611,42.07,30.29,46.217,36.533,29.117,35.947,27.63,43.62,24.55,41.35,30.783,33.929,41.037,26.166,32.262,31.418,32.567,35.033,33.221,33.909,39.366,39.873,38.689,36.573,37.298,39.103,38.037,37,37.14,37.091,37.064,40.777,41.158,41.25,40.46,38.142,40.079,42.149,43.394,42.805,42.891,42.595,42.879,44.683],[-124.29,-84.856,-81.75,-80.723,-115.132,-71.799,-83.277,-88.068,-91.339,-90.472,-97.346,-107.72,-110.848,-117.116,-77.9,-85.2,-90.325,-92.814,-98.983,-75.078,-75.227,-75.359,-79.335,-81.204,-84.419,-87.532,-89.252,-100.96,-107.76,-113.593,-73.873,-73.129,-70.667,-84.079,-93.9,-76.429,-95.592,-104.8,-114.486,-70.708,-72.004,-73.246,-87.938,-97.364,-94.416,-110.44,-80.7,-122.983,-83.655,-83.738,-124.29,-87.672,-97.633,-93.2,-89.55,-114.861,-90.45,-96.22,-81.75,-71.799,-83.277,-78.075,-107.492,-97.346,-107.72,-110.848,-117.116,-85.2,-92.814,-94.859,-75.078,-75.227,-75.359,-79.335,-81.204,-84.419,-87.532,-101.883,-107.76,-113.593,-89.219,-73.873,-73.129,-70.667,-91.428,-76.429,-95.592,-112.287,-70.708,-72.004,-73.246,-87.938,-97.364,-111.116],10,null,null,{"interactive":true,"className":"","stroke":true,"color":["#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000"],"weight":5,"opacity":0.5,"fill":true,"fillColor":["#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#0000FF","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000","#FF0000"],"fillOpacity":0.2},null,null,null,{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[24.55,46.677],"lng":[-124.29,-70.667]}},"evals":[],"jsHooks":[]}</script>
 
 Knit the doc and save it on GitHub.
 
@@ -345,6 +339,23 @@ to classify them according to the following criteria:
 - Mid: temp \>= 20 and temp \< 25
 - High: temp \>= 25
 
+``` r
+met_avg_temp <- met %>% 
+  group_by(STATE) %>% 
+  summarise(
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE)
+  )
+
+met_low_temp <- met_avg_temp %>% 
+  filter(temp < 20)
+met_mid_temp <- met_avg_temp %>% 
+  filter(temp >= 20 & temp < 25)
+met_high_temp <- met_avg_temp %>% 
+  filter(temp >= 25)
+```
+
 Once you are done with that, you can compute the following:
 
 - Number of entries (records),
@@ -354,6 +365,100 @@ Once you are done with that, you can compute the following:
 - Mean temperature, wind-speed, and atmospheric pressure.
 
 All by the levels described before.
+
+``` r
+met_low_stations <- met %>% 
+  select(USAFID, STATE, lon, lat) %>% 
+  distinct() %>% 
+  filter(STATE %in% c("CO", "ME", "MN", "MT", "ND", "NH", "OR", "VT", "WA", "WI", "WY"))
+
+met_low_temp %>% 
+  summarise(
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE))
+```
+
+    ## Source: local data table [1 x 3]
+    ## Call:   `_DT2`[, .(temp = mean(temp, na.rm = TRUE), wind.sp = mean(wind.sp, 
+    ##     na.rm = TRUE), atm.press = mean(atm.press, na.rm = TRUE)), 
+    ##     keyby = .(STATE)][temp < 20, .(temp = mean(temp, na.rm = TRUE), 
+    ##     wind.sp = mean(wind.sp, na.rm = TRUE), atm.press = mean(atm.press, 
+    ##         na.rm = TRUE))]
+    ## 
+    ##    temp wind.sp atm.press
+    ##   <dbl>   <dbl>     <dbl>
+    ## 1  18.7    2.55     1014.
+    ## 
+    ## # Use as.data.table()/as.data.frame()/as_tibble() to access results
+
+Low temperature level Number of entries (records) - 11 Number of NA
+entries - There are two NaN entries in the atm.press column. Number of
+stations - 466 Number of states included - 11 Mean temperature,
+wind-speed, and atmospheric pressure - 18.7C, 2.55mph, 1014mmHg
+respectively
+
+``` r
+met_mid_stations <- met %>% 
+  select(USAFID, STATE, lon, lat) %>% 
+  distinct() %>% 
+  filter(STATE %in% c("CA", "CT", "DE", "IA", "ID", "IL", "IN", "KS", "KY", "MA", "MD", "MI", "MO", "NC", "NE", "NJ", "NM", "NY", "OH", "PA", "RI", "SD", "TN", "VA", "WV"))
+
+met_mid_temp %>% 
+  summarise(
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE))
+```
+
+    ## Source: local data table [1 x 3]
+    ## Call:   `_DT2`[, .(temp = mean(temp, na.rm = TRUE), wind.sp = mean(wind.sp, 
+    ##     na.rm = TRUE), atm.press = mean(atm.press, na.rm = TRUE)), 
+    ##     keyby = .(STATE)][temp >= 20 & temp < 25, .(temp = mean(temp, 
+    ##     na.rm = TRUE), wind.sp = mean(wind.sp, na.rm = TRUE), atm.press = mean(atm.press, 
+    ##     na.rm = TRUE))]
+    ## 
+    ##    temp wind.sp atm.press
+    ##   <dbl>   <dbl>     <dbl>
+    ## 1  22.6    2.39     1015.
+    ## 
+    ## # Use as.data.table()/as.data.frame()/as_tibble() to access results
+
+Mid temperature level Number of entries (records) - 25 Number of NA
+entries - 0 Number of stations - 1435 Number of states included - 25
+Mean temperature, wind-speed, and atmospheric pressure - 22.6C, 2.39mph,
+1015mmHg respectively
+
+``` r
+met_high_stations <- met %>% 
+  select(USAFID, STATE, lon, lat) %>% 
+  distinct() %>% 
+  filter(STATE %in% c("AL", "AR", "AZ", "FL", "GA", "LA", "MS", "NV", "OK", "SC", "TX", "UT"))
+
+met_high_temp %>% 
+  summarise(
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE))
+```
+
+    ## Source: local data table [1 x 3]
+    ## Call:   `_DT2`[, .(temp = mean(temp, na.rm = TRUE), wind.sp = mean(wind.sp, 
+    ##     na.rm = TRUE), atm.press = mean(atm.press, na.rm = TRUE)), 
+    ##     keyby = .(STATE)][temp >= 25, .(temp = mean(temp, na.rm = TRUE), 
+    ##     wind.sp = mean(wind.sp, na.rm = TRUE), atm.press = mean(atm.press, 
+    ##         na.rm = TRUE))]
+    ## 
+    ##    temp wind.sp atm.press
+    ##   <dbl>   <dbl>     <dbl>
+    ## 1  27.0    2.43     1014.
+    ## 
+    ## # Use as.data.table()/as.data.frame()/as_tibble() to access results
+
+High temperature level Number of entries (records) - 12 Number of NA
+entries - 0 Number of stations - 983 Number of states included - 12 Mean
+temperature, wind-speed, and atmospheric pressure - 27C, 2.43mph,
+1014mmHg respectively
 
 Knit the document, commit your changes, and push them to GitHub.
 
@@ -370,3 +475,103 @@ need the `mgcv` package and `gam()` function to do this.
 - fit both a linear model and a spline model (use `gam()` with a cubic
   regression spline on wind speed). Summarize and plot the results from
   the models and interpret which model is the best fit and why.
+
+``` r
+met_med_lz <- met_lz %>% 
+  group_by(USAFID) %>% 
+  summarise(
+    temp = quantile(temp, probs = .5, na.rm = TRUE),
+    wind.sp = quantile(wind.sp, probs = .5, na.rm = TRUE),
+    atm.press = quantile(atm.press, probs = .5, na.rm = TRUE))
+met_med_lz <- as.data.frame(met_med_lz)
+
+ggplot(met_med_lz, aes(x=wind.sp, y=temp))+
+    geom_point()+
+    geom_smooth(method='lm',col="red")+
+    geom_smooth(col="blue")
+```
+
+    ## `geom_smooth()` using formula = 'y ~ x'
+
+    ## Warning: Removed 16 rows containing non-finite values (`stat_smooth()`).
+
+    ## `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
+
+    ## Warning: Removed 16 rows containing non-finite values (`stat_smooth()`).
+
+    ## Warning: Removed 16 rows containing missing values (`geom_point()`).
+
+![](README_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+
+``` r
+lmod <- lm(temp~wind.sp,data=met_med_lz)
+summary(lmod)
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = temp ~ wind.sp, data = met_med_lz)
+    ## 
+    ## Residuals:
+    ##      Min       1Q   Median       3Q      Max 
+    ## -17.7243  -2.6518  -0.2309   2.7691  14.5052 
+    ## 
+    ## Coefficients:
+    ##             Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept) 22.23088    0.21779  102.08  < 2e-16 ***
+    ## wind.sp      0.48614    0.08212    5.92 3.94e-09 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 3.849 on 1577 degrees of freedom
+    ##   (16 observations deleted due to missingness)
+    ## Multiple R-squared:  0.02174,    Adjusted R-squared:  0.02112 
+    ## F-statistic: 35.05 on 1 and 1577 DF,  p-value: 3.941e-09
+
+``` r
+plot(lmod)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-2.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-3.png)<!-- -->![](README_files/figure-gfm/unnamed-chunk-13-4.png)<!-- -->
+
+``` r
+gmod <- gam(temp~s(wind.sp, fx=TRUE, bs="cr"), data=met_med_lz)
+plot(gmod)
+```
+
+![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
+``` r
+summary(gmod)
+```
+
+    ## 
+    ## Family: gaussian 
+    ## Link function: identity 
+    ## 
+    ## Formula:
+    ## temp ~ s(wind.sp, fx = TRUE, bs = "cr")
+    ## 
+    ## Parametric coefficients:
+    ##             Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept) 23.38566    0.09548   244.9   <2e-16 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Approximate significance of smooth terms:
+    ##            edf Ref.df     F  p-value    
+    ## s(wind.sp)   9      9 10.01 4.52e-15 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## R-sq.(adj) =  0.0489   Deviance explained = 5.43%
+    ## GCV = 14.486  Scale est. = 14.394    n = 1579
+
+The spline model is a better fit than the linear model. We can tell this
+from the adjusted $R^2$ value. The spline model (0.0489) has a higher
+value than the linear model (0.0211), however, the values themselves are
+very low and may not be significant.
+
+References
+
+1.  <https://github.com/cbegay89/PM566-labs/blob/master/05-lab.rmd>

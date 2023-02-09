@@ -1,7 +1,9 @@
 ---
 title: "Lab 05 - Data Wrangling"
+always_allow_html: true
 output: 
   github_document: default
+  
 link-citations: yes
 ---
 
@@ -87,8 +89,10 @@ Once you are done setting up the project, you can now start working with the MET
 ```{r}
 library(data.table)
 library(dtplyr)
+library(tidyverse)
 library(dplyr)
 library(ggplot2)
+library(mgcv)
 library(leaflet)
 ```
 
@@ -212,8 +216,7 @@ met_stations[,  distance := sqrt((temp_mid - met_stations$temp)^2 + (wind_mid - 
 
 met_stations[, minrecord := which.min(lat), by = STATE]
 met_stations[, n := 1:.N, by = STATE]
-met_state <- met_stations[n == minrecord, .(USAFID, STATE, temp, wind.sp, atm.press, lon, lat)]
-met_state
+met_state <- met_stations[n == minrecord, .(USAFID, STATE, lon, lat)]
 ```
 
 Knit the doc and save it on GitHub.
@@ -234,8 +237,19 @@ met_middle[,  distance := sqrt((lat_mid - met_middle$lat)^2 + (lon_mid - met_mid
 met_middle[, minrecord := which.min(distance), by = STATE]
 met_middle[, n := 1:.N, by = STATE]
 met_midpt <- met_middle[n == minrecord, .(USAFID, STATE, lon, lat)]
-met_midpt
 ```
+
+```{r}
+met_state[, type := "Q2"]
+met_midpt[, type := "Q3"]
+met_combined <- rbind(met_state, met_midpt)
+rh <- colorFactor(c('blue', 'red'),
+                       domain = as.factor(met_combined$type))
+leaflet(met_combined) %>%
+  addProviderTiles("OpenStreetMap") %>%
+  addCircles(lng = ~lon, lat = ~lat, color=~rh(type))
+```
+
 
 Knit the doc and save it on GitHub.
 
@@ -250,7 +264,20 @@ Start by computing the states' average temperature. Use that measurement to clas
 - High: temp >= 25
 
 ```{r}
+met_avg_temp <- met %>% 
+  group_by(STATE) %>% 
+  summarise(
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE)
+  )
 
+met_low_temp <- met_avg_temp %>% 
+  filter(temp < 20)
+met_mid_temp <- met_avg_temp %>% 
+  filter(temp >= 20 & temp < 25)
+met_high_temp <- met_avg_temp %>% 
+  filter(temp >= 25)
 ```
 
 Once you are done with that, you can compute the following:
@@ -264,8 +291,66 @@ Once you are done with that, you can compute the following:
 All by the levels described before.
 
 ```{r}
+met_low_stations <- met %>% 
+  select(USAFID, STATE, lon, lat) %>% 
+  distinct() %>% 
+  filter(STATE %in% c("CO", "ME", "MN", "MT", "ND", "NH", "OR", "VT", "WA", "WI", "WY"))
 
+met_low_temp %>% 
+  summarise(
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE))
 ```
+
+Low temperature level
+Number of entries (records) - 11
+Number of NA entries - There are two NaN entries in the atm.press column.
+Number of stations - 466
+Number of states included - 11
+Mean temperature, wind-speed, and atmospheric pressure - 18.7C, 2.55mph, 1014mmHg respectively
+
+
+```{r}
+met_mid_stations <- met %>% 
+  select(USAFID, STATE, lon, lat) %>% 
+  distinct() %>% 
+  filter(STATE %in% c("CA", "CT", "DE", "IA", "ID", "IL", "IN", "KS", "KY", "MA", "MD", "MI", "MO", "NC", "NE", "NJ", "NM", "NY", "OH", "PA", "RI", "SD", "TN", "VA", "WV"))
+
+met_mid_temp %>% 
+  summarise(
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE))
+```
+
+Mid temperature level
+Number of entries (records) - 25
+Number of NA entries - 0
+Number of stations - 1435
+Number of states included - 25
+Mean temperature, wind-speed, and atmospheric pressure - 22.6C, 2.39mph, 1015mmHg respectively
+
+```{r}
+met_high_stations <- met %>% 
+  select(USAFID, STATE, lon, lat) %>% 
+  distinct() %>% 
+  filter(STATE %in% c("AL", "AR", "AZ", "FL", "GA", "LA", "MS", "NV", "OK", "SC", "TX", "UT"))
+
+met_high_temp %>% 
+  summarise(
+    temp = mean(temp, na.rm = TRUE),
+    wind.sp = mean(wind.sp, na.rm = TRUE),
+    atm.press = mean(atm.press, na.rm = TRUE))
+```
+
+High temperature level
+Number of entries (records) - 12
+Number of NA entries - 0
+Number of stations - 983
+Number of states included - 12
+Mean temperature, wind-speed, and atmospheric pressure - 27C, 2.43mph, 1014mmHg respectively
+
 
 Knit the document, commit your changes, and push them to GitHub. 
 
@@ -279,5 +364,37 @@ Let's practice running regression models with smooth functions on X. We need the
 - fit both a linear model and a spline model (use `gam()` with a cubic regression spline on wind speed). Summarize and plot the results from the models and interpret which model is the best fit and why.
 
 ```{r}
+met_med_lz <- met_lz %>% 
+  group_by(USAFID) %>% 
+  summarise(
+    temp = quantile(temp, probs = .5, na.rm = TRUE),
+    wind.sp = quantile(wind.sp, probs = .5, na.rm = TRUE),
+    atm.press = quantile(atm.press, probs = .5, na.rm = TRUE))
+met_med_lz <- as.data.frame(met_med_lz)
+
+ggplot(met_med_lz, aes(x=wind.sp, y=temp))+
+    geom_point()+
+    geom_smooth(method='lm',col="red")+
+    geom_smooth(col="blue")
 
 ```
+
+```{r}
+lmod <- lm(temp~wind.sp,data=met_med_lz)
+summary(lmod)
+plot(lmod)
+```
+
+```{r}
+gmod <- gam(temp~s(wind.sp, fx=TRUE, bs="cr"), data=met_med_lz)
+plot(gmod)
+summary(gmod)
+```
+
+The spline model is a better fit than the linear model. We can tell this from the adjusted $R^2$ value. The spline model (0.0489) has a higher value than the linear model (0.0211), however, the values themselves are very low and may not be significant.
+
+
+
+References
+
+1. https://github.com/cbegay89/PM566-labs/blob/master/05-lab.rmd
