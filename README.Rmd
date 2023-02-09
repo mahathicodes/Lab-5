@@ -203,10 +203,13 @@ Just like the previous question, you are asked to identify what is the most repr
 ```{r}
 met_stations <- unique(met[, .(USAFID, STATE, temp, wind.sp, atm.press, lon, lat)])
 met_stations <- na.omit(met_stations)
+
 met_stations[, temp_mid := quantile(temp, probs = .5, na.rm = TRUE), by = STATE]
 met_stations[, wind_mid := quantile(wind.sp, probs = .5, na.rm = TRUE), by = STATE]
 met_stations[, atm_mid := quantile(atm.press, probs = .5, na.rm = TRUE), by = STATE]
+
 met_stations[,  distance := sqrt((temp_mid - met_stations$temp)^2 + (wind_mid - met_stations$wind.sp)^2 + (atm_mid - met_stations$atm.press)^2)]
+
 met_stations[, minrecord := which.min(lat), by = STATE]
 met_stations[, n := 1:.N, by = STATE]
 met_state <- met_stations[n == minrecord, .(USAFID, STATE, temp, wind.sp, atm.press, lon, lat)]
@@ -220,7 +223,18 @@ Knit the doc and save it on GitHub.
 For each state, identify what is the station that is closest to the mid-point of the state. Combining these with the stations you identified in the previous question, use `leaflet()` to visualize all ~100 points in the same figure, applying different colors for those identified in this question.
 
 ```{r}
+met_middle <- unique(met[, .(USAFID, STATE, lon, lat)])
+met_middle <- na.omit(met_middle)
 
+met_middle[, lat_mid := quantile(lat, probs = .5, na.rm = TRUE), by = STATE]
+met_middle[, lon_mid := quantile(lon, probs = .5, na.rm = TRUE), by = STATE]
+
+met_middle[,  distance := sqrt((lat_mid - met_middle$lat)^2 + (lon_mid - met_middle$lat)^2)]
+
+met_middle[, minrecord := which.min(distance), by = STATE]
+met_middle[, n := 1:.N, by = STATE]
+met_midpt <- met_middle[n == minrecord, .(USAFID, STATE, lon, lat)]
+met_midpt
 ```
 
 Knit the doc and save it on GitHub.
