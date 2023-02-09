@@ -101,7 +101,7 @@ library(leaflet)
 
 ```{r stations-data, eval = TRUE}
 # Download the data
-stations <- fread("ftp://ftp.ncdc.noaa.gov/pub/data/noaa/isd-history.csv")
+stations <- data.table::fread("ftp://ftp.ncdc.noaa.gov/pub/data/noaa/isd-history.csv")
 stations[, USAF := as.integer(USAF)]
 
 # Dealing with NAs and 999999
@@ -201,7 +201,16 @@ Knit the document, commit your changes, and save it on GitHub. Don't forget to a
 Just like the previous question, you are asked to identify what is the most representative, the median, station per state. This time, instead of looking at one variable at a time, look at the euclidean distance. If multiple stations show in the median, select the one located at the lowest latitude.
 
 ```{r}
-
+met_stations <- unique(met[, .(USAFID, STATE, temp, wind.sp, atm.press, lon, lat)])
+met_stations <- na.omit(met_stations)
+met_stations[, temp_mid := quantile(temp, probs = .5, na.rm = TRUE), by = STATE]
+met_stations[, wind_mid := quantile(wind.sp, probs = .5, na.rm = TRUE), by = STATE]
+met_stations[, atm_mid := quantile(atm.press, probs = .5, na.rm = TRUE), by = STATE]
+met_stations[,  distance := sqrt((temp_mid - met_stations$temp)^2 + (wind_mid - met_stations$wind.sp)^2 + (atm_mid - met_stations$atm.press)^2)]
+met_stations[, minrecord := which.min(lat), by = STATE]
+met_stations[, n := 1:.N, by = STATE]
+met_state <- met_stations[n == minrecord, .(USAFID, STATE, temp, wind.sp, atm.press, lon, lat)]
+met_state
 ```
 
 Knit the doc and save it on GitHub.

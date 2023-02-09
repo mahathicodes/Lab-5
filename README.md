@@ -134,7 +134,7 @@ library(leaflet)
 
 ``` r
 # Download the data
-stations <- fread("ftp://ftp.ncdc.noaa.gov/pub/data/noaa/isd-history.csv")
+stations <- data.table::fread("ftp://ftp.ncdc.noaa.gov/pub/data/noaa/isd-history.csv")
 stations[, USAF := as.integer(USAF)]
 ```
 
@@ -256,6 +256,68 @@ most representative, the median, station per state. This time, instead
 of looking at one variable at a time, look at the euclidean distance. If
 multiple stations show in the median, select the one located at the
 lowest latitude.
+
+``` r
+met_stations <- unique(met[, .(USAFID, STATE, temp, wind.sp, atm.press, lon, lat)])
+met_stations <- na.omit(met_stations)
+met_stations[, temp_mid := quantile(temp, probs = .5, na.rm = TRUE), by = STATE]
+met_stations[, wind_mid := quantile(wind.sp, probs = .5, na.rm = TRUE), by = STATE]
+met_stations[, atm_mid := quantile(atm.press, probs = .5, na.rm = TRUE), by = STATE]
+met_stations[,  distance := sqrt((temp_mid - met_stations$temp)^2 + (wind_mid - met_stations$wind.sp)^2 + (atm_mid - met_stations$atm.press)^2)]
+met_stations[, minrecord := which.min(lat), by = STATE]
+met_stations[, n := 1:.N, by = STATE]
+met_state <- met_stations[n == minrecord, .(USAFID, STATE, temp, wind.sp, atm.press, lon, lat)]
+met_state
+```
+
+    ##     USAFID STATE temp wind.sp atm.press      lon    lat
+    ##  1: 720365    OR 20.6     3.6    1017.1 -124.290 42.070
+    ##  2: 720379    KY 22.8     4.1    1019.5  -84.856 36.855
+    ##  3: 722010    FL 29.4     3.1    1015.3  -81.750 24.550
+    ##  4: 722085    SC 32.2     1.5    1019.1  -80.723 32.477
+    ##  5: 722096    NV 25.0     3.1    1014.8 -115.132 35.976
+    ##  6: 722151    RI 25.0     2.1    1016.6  -71.799 41.350
+    ##  7: 722166    GA 27.8     0.0    1017.7  -83.277 30.783
+    ##  8: 722235    AL 28.9     1.5    1016.7  -88.068 30.626
+    ##  9: 722329    LA 26.1     0.0    1018.2  -91.339 29.710
+    ## 10: 722358    MS 22.8     0.0    1016.4  -90.472 31.178
+    ## 11: 722508    TX 28.9     6.7    1014.1  -97.346 26.166
+    ## 12: 722725    NM 30.0     7.7    1011.6 -107.720 32.262
+    ## 13: 722728    AZ 33.3     1.5    1012.3 -110.848 31.418
+    ## 14: 722909    CA 21.1     2.6    1014.5 -117.116 32.567
+    ## 15: 723020    NC 27.8     2.1    1017.0  -77.900 34.267
+    ## 16: 723240    TN 28.9     0.0    1016.6  -85.200 35.033
+    ## 17: 723300    MO 26.1     2.1    1016.4  -90.325 36.773
+    ## 18: 723419    AR 28.9     1.5    1016.1  -92.814 33.221
+    ## 19: 723528    OK 36.1     5.7    1011.7  -98.983 34.344
+    ## 20: 724075    NJ 22.8     2.6    1016.5  -75.078 39.366
+    ## 21: 724080    PA 23.9     2.6    1016.9  -75.227 39.873
+    ## 22: 724093    DE 22.8     0.0    1017.0  -75.359 38.689
+    ## 23: 724106    VA 22.8     2.1    1018.0  -79.335 36.573
+    ## 24: 724125    WV 18.9     2.1    1018.9  -81.204 37.298
+    ## 25: 724297    OH 26.1     3.1    1017.4  -84.419 39.103
+    ## 26: 724320    IN 28.9     2.6    1018.1  -87.532 38.037
+    ## 27: 724336    IL 28.3     5.1    1008.9  -89.252 37.778
+    ## 28: 724516    KS 19.4     2.1    1013.2 -100.960 37.044
+    ## 29: 724625    CO 25.0     0.0    1017.6 -107.760 37.140
+    ## 30: 724754    UT 23.9     3.6    1009.7 -113.593 37.091
+    ## 31: 725030    NY 30.0     2.1    1018.4  -73.873 40.777
+    ## 32: 725040    CT 22.8     2.1    1015.9  -73.129 41.158
+    ## 33: 725060    MA 21.7     4.1    1016.9  -70.667 41.250
+    ## 34: 725404    MI 22.8     3.6    1019.5  -84.079 41.868
+    ## 35: 725499    IA 21.7     3.1    1020.9  -93.900 40.630
+    ## 36: 725514    MD 23.3     1.5    1016.7  -76.429 38.142
+    ## 37: 725533    NE 27.8     2.6    1009.2  -95.592 40.079
+    ## 38: 725640    WY 26.7     2.1    1014.2 -104.800 41.150
+    ## 39: 725866    ID 32.2     4.6    1007.8 -114.486 42.482
+    ## 40: 726064    ME 22.8     2.6    1015.5  -70.708 43.394
+    ## 41: 726163    NH 23.3     0.0    1017.5  -72.004 42.805
+    ## 42: 726166    VT 26.1     4.1    1020.1  -73.246 42.891
+    ## 43: 726505    WI 18.3     2.1    1021.3  -87.938 42.595
+    ## 44: 726525    SD 18.3     3.1    1020.2  -97.364 42.879
+    ## 45: 726586    MN 22.2     3.1    1020.5  -94.416 43.644
+    ## 46: 726798    MT 23.3    12.4    1017.0 -110.440 45.698
+    ##     USAFID STATE temp wind.sp atm.press      lon    lat
 
 Knit the doc and save it on GitHub.
 
